@@ -1,0 +1,72 @@
+#!/bin/vbash
+source /opt/vyatta/etc/functions/script-template
+
+configure
+set service dhcp-server shared-network-name LAN authoritative enable
+set service dhcp-server shared-network-name LAN subnet 10.4.1.0/24 default-router 10.4.1.1
+set service dhcp-server shared-network-name LAN subnet 10.4.1.0/24 dns-server 10.4.1.1
+set service dhcp-server shared-network-name LAN subnet 10.4.1.0/24 domain-name host-network
+set service dhcp-server shared-network-name LAN subnet 10.4.1.0/24 lease '86400'
+set service dhcp-server disabled 'false'
+set service dhcp-server shared-network-name LAN subnet 10.4.1.0/24 start 10.4.1.10 stop 10.4.1.254
+set service dhcp-server shared-network-name LAN subnet 10.4.1.0/24 static-mapping DHCP-H3 ip-address 10.4.1.7
+set service dhcp-server shared-network-name LAN subnet 10.4.1.0/24 static-mapping DHCP-H3 mac-address 00:00:00:00:0C:01
+set service dhcp-server shared-network-name LAN subnet 10.4.1.0/24 static-mapping DHCP-H4 ip-address 10.4.1.8
+set service dhcp-server shared-network-name LAN subnet 10.4.1.0/24 static-mapping DHCP-H4 mac-address 00:00:00:00:0D:01
+set interfaces ethernet eth1 ipv6 router-advert managed-flag 'true'
+set interfaces ethernet eth1 ipv6 router-advert send-advert true
+set interfaces ethernet eth1 ipv6 router-advert prefix 2001:db8:0:4::/64
+set service dhcpv6-server shared-network-name LAN6 subnet 2001:db8:0:4::/64 address-range prefix 2001:db8:0:4::/64
+set service dhcpv6-server shared-network-name LAN6 subnet 2001:db8:0:4::/64 address-range start 2001:db8:0:4::10 stop 2001:db8:0:4::200
+set firewall group network-group NETWORK-HOSTS network 10.4.1.0/24
+set firewall group network-group NETWORK-H3 network 10.4.1.7/32
+set firewall group network-group NETWORK-H4 network 10.4.1.8/32
+set firewall name HACIA-HOSTS default-action drop
+set firewall name HACIA-HOSTS rule 10 action accept
+set firewall name HACIA-HOSTS rule 10 state established enable
+set firewall name HACIA-HOSTS rule 10 state related enable
+set firewall name HACIA-HOSTS rule 20 action accept
+set firewall name HACIA-HOSTS rule 20 destination port 80
+set firewall name HACIA-HOSTS rule 20 protocol tcp
+set firewall name HACIA-HOSTS rule 20 destination group network-group NETWORK-H3
+set firewall name HACIA-HOSTS rule 20 description Acceso_HTTP_a_H3
+set firewall name HACIA-HOSTS rule 30 action accept
+set firewall name HACIA-HOSTS rule 30 destination port 433
+set firewall name HACIA-HOSTS rule 30 protocol tcp
+set firewall name HACIA-HOSTS rule 30 description Acceso_HTTPS_a_H3 
+set firewall name HACIA-HOSTS rule 30 destination group network-group NETWORK-H3
+set firewall name HACIA-HOSTS rule 40 action accept
+set firewall name HACIA-HOSTS rule 40 destination port 22
+set firewall name HACIA-HOSTS rule 40 protocol tcp
+set firewall name HACIA-HOSTS rule 40 destination group network-group NETWORK-H4
+set firewall name HACIA-HOSTS rule 40 description Acceso_SSH_a_H4
+set firewall ipv6-name HACIA-HOSTS-v6 default-action drop
+set firewall ipv6-name HACIA-HOSTS-v6 rule 10 action accept
+set firewall ipv6-name HACIA-HOSTS-v6 rule 10 state established enable
+set firewall ipv6-name HACIA-HOSTS-v6 rule 10 state related enable
+set firewall ipv6-name HACIA-HOSTS-v6 rule 20 action accept
+set firewall ipv6-name HACIA-HOSTS-v6 rule 20 destination port 80
+set firewall ipv6-name HACIA-HOSTS-v6 rule 20 protocol tcp
+set firewall ipv6-name HACIA-HOSTS-v6 rule 20 destination address 2001:db8:0:4:200:ff:fe00:c01/128
+set firewall ipv6-name HACIA-HOSTS-v6 rule 20 description Acceso_HTTP_a_H3-v6
+set firewall ipv6-name HACIA-HOSTS-v6 rule 30 action accept
+set firewall ipv6-name HACIA-HOSTS-v6 rule 30 destination port 433
+set firewall ipv6-name HACIA-HOSTS-v6 rule 30 protocol tcp
+set firewall ipv6-name HACIA-HOSTS-v6 rule 30 description Acceso_HTTPS_a_H3-v6 
+set firewall ipv6-name HACIA-HOSTS-v6 rule 30 destination address 2001:db8:0:4:200:ff:fe00:c01/128
+set firewall ipv6-name HACIA-HOSTS-v6 rule 40 action accept
+set firewall ipv6-name HACIA-HOSTS-v6 rule 40 destination port 22
+set firewall ipv6-name HACIA-HOSTS-v6 rule 40 protocol tcp
+set firewall ipv6-name HACIA-HOSTS-v6 rule 40 destination address 2001:db8:0:4:200:ff:fe00:d01/128
+set firewall ipv6-name HACIA-HOSTS-v6 rule 40 description Acceso_SSH_a_H4-v6
+set firewall name HACIA-FUERA default-action accept
+set interfaces ethernet eth2 firewall in name HACIA-HOSTS
+set interfaces ethernet eth2 firewall in ipv6-name HACIA-HOSTS-v6
+set interfaces ethernet eth1 firewall local name HACIA-FUERA
+set nat source rule 100 outbound-interface eth2
+set nat source rule 100 source address 10.4.1.0/24
+set nat source rule 100 translation address masquerade
+commit
+save
+
+

@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        tutorial_lxc_vyos_PRACTICA_FINAL
+Integrantes: Jose Cassinelli, Andrés Muracciole, Israel Vásquez
+Description: Esta practica esta conformada por 2 hosts (h1 y h2), dos servidores (S1 y S2), un router linux (r1), un router vyos (r_vyos) y 2 conmutadores
+             open switch. Los conmutadores y el r_vyos están conectador a un controlador mediante openflow 1.3.
+             Esta práctica consiste en:
+                - Dar conectividad entre servidores y host
+                - Dar conectividad de lo host y servidores a internet
+                - Los hosts deben tomar IP medinte DHCP
+                - Implementar NAT hacia fuera
+                - Aplicar reglas de firewall para solo permitir tráfico HTTP/HTTPS hacia H1
+                - Aplicar reglas de firewall para solo permitir tráfico SSH hacia H2
+                - Aplicar reglas de firewall para permitir todo el tráfico saliente
+                - QoS
+		            - IPv6
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>tutorial_lxc_vyos</scenario_name>
+    <automac/>
+    <vm_mgmt type="none" />
+    <!--vm_mgmt type="private" network="10.250.0.0" mask="24" offset="200">
+       <host_mapping />
+    </vm_mgmt-->
+    <vm_defaults>
+        <console id="0" display="no"/>
+        <console id="1" display="yes"/>
+    </vm_defaults>
+
+    <vnx_cfg>tutorial_lxc_ubuntu.cvnx</vnx_cfg>
+
+    <help>
+        <seq_help seq='start-www'>Start apache2 web server</seq_help>
+        <seq_help seq='stop-www'>Stop apache2 web server</seq_help>
+    </help>
+
+  </global>
+  <net name="Net1" mode="virtual_bridge" />
+  <net name="Net2" mode="virtual_bridge" />
+  <net name="Net3" mode="virtual_bridge" />
+  <net name="Net9"  mode="openvswitch" hwaddr="00:00:00:00:09:00" controller='tcp:127.0.0.1:6633' of_version="OpenFlow13" fail_mode='secure' />
+  <net name="Net8"  mode="virtual_bridge" >
+        <connection name='net8-net9' net='Net9'>
+    </connection>
+        <connection name='net8-net7' net='Net7'>
+    </connection>
+  </net>
+  <net name="Net7"  mode="openvswitch" hwaddr="00:00:00:00:07:00" controller='tcp:127.0.0.1:6633' of_version="OpenFlow13" fail_mode='secure' />
+  <net name="Net6"  mode="openvswitch" hwaddr="00:00:00:00:0A:00" controller='tcp:127.0.0.1:6633' of_version="OpenFlow13" fail_mode='secure' />
+  <net name="Net5"  mode="virtual_bridge" >
+        <connection name='net5-net6' net='Net6'>
+    </connection>
+        <connection name='net5-net4' net='Net4'>
+    </connection>
+  </net>
+  <net name="Net4"  mode="openvswitch" hwaddr="00:00:00:00:0B:00" controller='tcp:127.0.0.1:6633' of_version="OpenFlow13" fail_mode='secure' />
+
+  <net name="virbr0" mode="virtual_bridge" managed="no"/>
+
+  <vm name="h1" type="lxc" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc64</filesystem>
+    <if id="1" net="Net9">
+      <mac>00:00:00:00:01:01</mac>
+      <ipv4>dhcp</ipv4>
+      <ipv6>dhcp</ipv6>
+    </if>
+    <route type="ipv4" gw="10.0.1.1">default</route>
+    <route type="ipv6" gw="2001:db8:0:0:200:ff:fe00:301">default</route>
+    <exec seq="on_boot" type="verbatim">service apache2 start
+    </exec>
+    <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>
+  </vm>
+
+  <vm name="h2" type="lxc" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc64</filesystem>
+    <if id="1" net="Net9">
+      <mac>00:00:00:00:02:01</mac>
+      <ipv4>dhcp</ipv4>
+      <ipv6>dhcp</ipv6>
+    </if>
+    <route type="ipv4" gw="10.0.1.1">default</route>
+    <route type="ipv6" gw="2001:db8:0:0:200:ff:fe00:301">default</route>
+    <exec seq="on_boot" type="verbatim">service apache2 start
+    </exec>
+    <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>
+  </vm>
+
+    <vm name="h3" type="lxc" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc64</filesystem>
+    <if id="1" net="Net6">
+      <mac>00:00:00:00:0C:01</mac>
+      <ipv4>dhcp</ipv4>
+      <ipv6>dhcp</ipv6>
+    </if>
+    <route type="ipv4" gw="10.4.1.1">default</route>
+    <route type="ipv6" gw="2001:db8:0:4:200:ff:fe00:c01">default</route>
+    <exec seq="on_boot" type="verbatim">service apache2 start
+    </exec>
+    <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>
+  </vm>
+
+  <vm name="h4" type="lxc" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc64</filesystem>
+    <if id="1" net="Net6">
+      <mac>00:00:00:00:0D:01</mac>
+      <ipv4>dhcp</ipv4>
+      <ipv6>dhcp</ipv6>
+    </if>
+    <route type="ipv4" gw="10.4.1.1">default</route>
+    <route type="ipv6" gw="2001:db8:0:4:200:ff:fe00:d01">default</route>
+    <exec seq="on_boot" type="verbatim">service apache2 start
+    </exec>
+    <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>
+  </vm>
+
+  <vm name="r_vyos_1" type="lxc" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc_vyos</filesystem>
+    <filetree seq="set-hostname" root="/root/" perms="755">conf/set-hostname</filetree>
+    <exec seq="set-hostname" type="verbatim" ostype="system">/root/set-hostname</exec>
+    <if id="1" net="Net7">
+      <mac>00:00:00:00:03:01</mac>
+      <ipv4>10.0.1.1/24</ipv4>
+      <ipv6>2001:db8:0:0:200:ff:fe00:301/64</ipv6>
+    </if>
+    <if id="2" net="Net1">
+      <mac>00:00:00:00:03:02</mac>
+      <ipv4>10.1.1.1/24</ipv4>
+      <ipv6>2001:db8:0:1:200:ff:fe00:302/64</ipv6>
+    </if>
+    <route type="ipv4" gw="10.1.1.2">default</route>
+    <route type="ipv6" gw="2001:db8:0:1:200:ff:fe00:402">default</route>
+    <forwarding type="ip" />
+  </vm>
+
+    <vm name="r_vyos_2" type="lxc" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc_vyos</filesystem>
+    <filetree seq="set-hostname2" root="/root/" perms="755">conf/set-hostname2</filetree>
+    <exec seq="set-hostname2" type="verbatim" ostype="system">/root/set-hostname2</exec>
+    <if id="1" net="Net4">
+      <mac>00:00:00:00:0E:01</mac>
+      <ipv4>10.4.1.1/24</ipv4>
+      <ipv6>2001:db8:0:4:200:ff:fe00:e01/64</ipv6>
+    </if>
+    <if id="2" net="Net3">
+      <mac>00:00:00:00:0E:02</mac>
+      <ipv4>10.3.1.1/24</ipv4>
+      <ipv6>2001:db8:0:3:200:ff:fe00:e02/64</ipv6>
+    </if>
+    <route type="ipv4" gw="10.3.1.2">default</route>
+    <route type="ipv6" gw="2001:db8:0:3:200:ff:fe00:403">default</route>
+    <forwarding type="ip" />
+  </vm>
+
+  <vm name="r1" type="lxc" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc_ubuntu64</filesystem>
+    <if id="1" net="Net2">
+      <mac>00:00:00:00:04:01</mac>
+      <ipv4>10.2.1.1/24</ipv4>
+      <ipv6>2001:db8:0:2:200:ff:fe00:401/64</ipv6>
+    </if>
+    <if id="2" net="Net1">
+      <mac>00:00:00:00:04:02</mac>
+      <ipv4>10.1.1.2/24</ipv4>
+      <ipv6>2001:db8:0:1:200:ff:fe00:402/64</ipv6>
+    </if>
+    <if id="3" net="Net3">
+      <mac>00:00:00:00:04:03</mac>
+      <ipv4>10.3.1.2/24</ipv4>
+      <ipv6>2001:db8:0:3:200:ff:fe00:403/64</ipv6>
+    </if>
+    <if id="9" net="virbr0">
+      <mac>00:00:00:00:04:04</mac>
+      <ipv4>dhcp</ipv4>
+    </if>
+    <route type="ipv4" gw="10.1.1.1">10.0.1.0/24</route>
+    <route type="ipv6" gw="2001:db8:0:1:200:ff:fe00:302">2001:db8::/64</route>
+    <route type="ipv4" gw="10.3.1.1">10.4.1.0/24</route>
+    <route type="ipv6" gw="2001:db8:0:3:200:ff:fe00:e02">2001:db8:0:4::/64</route>
+    <forwarding type="ip" />
+    <filetree seq="on_boot" root="/usr/bin/" perms="755">/usr/bin/vnx_config_nat</filetree>
+    <exec seq="on_boot" type="verbatim">
+        /usr/bin/vnx_config_nat eth1 eth9
+        /usr/bin/vnx_config_nat eth2 eth9
+    </exec>
+  </vm>
+
+  <vm name="S1" type="lxc" arch="x86_64">
+   <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc64</filesystem>
+   <if id="1" net="Net2">
+      <mac>00:00:00:00:05:01</mac>
+      <ipv4>10.2.1.2/24</ipv4>
+      <ipv6>2001:db8:0:2:200:ff:fe00:501/64</ipv6>
+      </if>
+    <route type="ipv4" gw="10.2.1.1">default</route>
+    <route type="ipv6" gw="2001:db8:0:2:200:ff:fe00:401">default</route>
+  </vm>
+
+  <vm name="S2" type="lxc" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc64</filesystem>
+    <if id="1" net="Net2">
+      <mac>00:00:00:00:06:01</mac>
+      <ipv4>10.2.1.3/24</ipv4>
+      <ipv6>2001:db8:0:2:200:ff:fe00:601/64</ipv6>
+    </if>
+    <route type="ipv4" gw="10.2.1.1">default</route>
+    <route type="ipv6" gw="2001:db8:0:2:200:ff:fe00:401">default</route>
+  </vm>
+<!--
+  <host>
+    <hostif net="Net1">
+      <ipv4>10.1.1.3/24</ipv4>
+    </hostif>
+    <route type="ipv4" gw="10.1.1.2">default</route>
+    <route type="ipv6" gw="2001:db8:1::2">default</route>
+  </host>
+-->
+</vnx>
